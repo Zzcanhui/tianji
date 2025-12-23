@@ -1,6 +1,7 @@
 package com.tianji.learning.service.impl;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.tianji.api.client.course.CourseClient;
 import com.tianji.api.dto.course.CourseSimpleInfoDTO;
@@ -12,6 +13,7 @@ import com.tianji.common.utils.CollUtils;
 import com.tianji.common.utils.UserContext;
 import com.tianji.learning.domain.po.LearningLesson;
 import com.tianji.learning.domain.vo.LearningLessonVO;
+import com.tianji.learning.enums.LessonStatus;
 import com.tianji.learning.enums.PlanStatus;
 import com.tianji.learning.mapper.LearningLessonMapper;
 import com.tianji.learning.service.ILearningLessonService;
@@ -118,5 +120,98 @@ public class LearningLessonServiceImpl extends ServiceImpl<LearningLessonMapper,
         }
 
         return PageDTO.of(page,list);
+    }
+
+    /**
+     * 删除课表中课程
+     * @param userId 用户id
+     * @param courseId 课程id
+     */
+    public void deleteCourseFromLesson(Long userId, Long courseId) {
+        //1.判断当前登录用户id是否为null
+        //调用这个方法有两种情况：用户直接删除已失效的课程 -> 在controller中调用，没有获取用户id，只传了null值
+        //                      用户退款后触发课表自动删除 -> 在listener中调用，直接获取了OrderBasicDTO中的用户id
+        //listenCourseRefund已有健壮性判断，这里目的是在直接删除已失效的课程时，获取用户id
+        if (userId == null) {
+            userId = UserContext.getUser();
+        }
+
+        //2.删除课程
+        //第一种写法：直接通过Wrappers.<LearningLesson>lambdaQuery()创建LambdaQueryWrapper对象，直接简洁
+        remove(Wrappers.<LearningLesson>lambdaQuery()
+                .eq(LearningLesson::getUserId, userId)
+                .eq(LearningLesson::getCourseId, courseId));
+
+        //第二种写法：先创建普通QueryWrapper对象，再通过.lambda()方法转换成LambdaQueryWrapper对象，多一次转换，冗余
+//        remove(new QueryWrapper<LearningLesson>().lambda()
+//                        .eq(LearningLesson::getUserId, userId)
+//                        .in(LearningLesson::getCourseId, courseId));
+    }
+
+    /**
+     * 校验当前用户是否可以学习当前课程
+     * @param courseId 课程id
+     * @return lessonId，如果是报名了则返回lessonId，否则返回空
+     */
+    public Long isLessonValid(Long courseId) {
+        //1.获取当前登录用户id
+        Long userId = UserContext.getUser();
+
+        //2.查询当前用户的课表learning_lesson    条件:user_id  course_id
+        LearningLesson lesson = lambdaQuery()
+                .eq(LearningLesson::getUserId, userId)
+                .eq(LearningLesson::getCourseId, courseId)
+                .one();//联合唯一索引，最多只能查出一条数据
+        if (lesson == null) {
+            return null;
+        }
+
+        //3.校验课程是否过期
+        LocalDateTime expireTime = lesson.getExpireTime();
+        LocalDateTime now = LocalDateTime.now();
+        if (now.isAfter(expireTime)) {  //当前时间已经在过期时间之后，即过期
+            return null;
+        }
+
+        return lesson.getId();
+    }
+
+    /**
+     * 查询用户课表中指定课程状态
+     * @param courseId 课程id
+     * @return 课程状态
+     */
+    public LearningLessonVO queryLessonByCourseId(Long courseId) {
+        //1.获取当前登录用户id
+        Long userId = UserContext.getUser();
+
+        //2.查询当前用户的课表learning_lesson    条件:user_id  course_id
+        LearningLesson lesson = lambdaQuery()
+                .eq(LearningLesson::getUserId, userId)
+                .eq(LearningLesson::getCourseId, courseId)
+                .one();//联合唯一索引，最多只能查出一条数据
+        if (lesson == null) {
+            return null;
+        }
+
+        //3.po转vo返回
+        LearningLessonVO vo = BeanUtils.copyBean(lesson, LearningLessonVO.class);
+        return vo;
+    }
+
+    /**
+     * 统计课程学习人数
+     * @param courseId 课程id
+     * @return 学习人数
+     */
+    public Integer countLearningLessonByCourse(Long courseId) {
+        //统计课程学习人数就不需要获取当前登录用户id了，因为统计的课程学习人数不需要区分用户
+        return lambdaQuery()
+                .eq(LearningLesson::getCourseId, courseId)
+                .in(LearningLesson::getStatus,  //把未学习、学习中、已学完的状态都算上
+                        LessonStatus.NOT_BEGIN.getValue(),
+                        LessonStatus.LEARNING.getValue(),
+                        LessonStatus.FINISHED.getValue())
+                .count();
     }
 }
