@@ -100,8 +100,8 @@ public class LearningLessonServiceImpl extends ServiceImpl<LearningLessonMapper,
             throw new BadRequestException("课程信息不存在!");
         }
         // 3.3.把课程集合处理成Map,key是courseId，值是course本身
-        Map<Long, CourseSimpleInfoDTO> cMap = cInfoList.stream().collect(Collectors.toMap(CourseSimpleInfoDTO::getId, c-> c));
-
+        Map<Long, CourseSimpleInfoDTO> cMap = cInfoList.stream()
+                .collect(Collectors.toMap(CourseSimpleInfoDTO::getId, c-> c));
 
         // 4.封装VO返回
         List<LearningLessonVO> list =new ArrayList<>(records.size());
