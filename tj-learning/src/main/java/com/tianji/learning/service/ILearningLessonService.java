@@ -29,4 +29,6 @@ public interface ILearningLessonService extends IService<LearningLesson> {
     LearningLessonVO queryLessonByCourseId(Long courseId);
 
     Integer countLearningLessonByCourse(Long courseId);
+
+     LearningLesson queryByUserIdAndCourseId(Long userId, Long courseId);
 }

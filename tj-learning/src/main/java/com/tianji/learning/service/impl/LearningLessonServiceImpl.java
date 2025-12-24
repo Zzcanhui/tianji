@@ -1,5 +1,8 @@
 package com.tianji.learning.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.Wrapper;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -214,4 +217,18 @@ public class LearningLessonServiceImpl extends ServiceImpl<LearningLessonMapper,
                         LessonStatus.FINISHED.getValue())
                 .count();
     }
+
+    @Override
+    public  LearningLesson queryByUserIdAndCourseId(Long userId, Long courseId){
+        return getOne(buildUserIdAndCourseIdWrapper(userId, courseId)) ;
+    }
+
+    private Wrapper<LearningLesson> buildUserIdAndCourseIdWrapper(Long userId, Long courseId) {
+        LambdaQueryWrapper<LearningLesson> queryWrapper = new QueryWrapper<LearningLesson>()
+                .lambda()
+                .eq(LearningLesson::getUserId, userId)
+                .eq(LearningLesson::getCourseId, courseId);
+        return queryWrapper;
+    }
+
 }

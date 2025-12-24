@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.*;
  */
 @RestController
 @RequestMapping("/lessons")
-@Api("我的课表相关接口")
+@Api(tags = "我的课表相关接口")
 @RequiredArgsConstructor
 public class LearningLessonController {
 
