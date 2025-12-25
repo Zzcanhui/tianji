@@ -52,12 +52,12 @@ public class LearningLesson implements Serializable {
     /**
      * 每周学习频率，例如每周学习6小节，则频率为6
      */
-    private PlanStatus weekFreq;
+    private Integer weekFreq;
 
     /**
      * 学习计划状态，0-没有计划，1-计划进行中
      */
-    private Integer planStatus;
+    private PlanStatus planStatus;
 
     /**
      * 已学习小节数量

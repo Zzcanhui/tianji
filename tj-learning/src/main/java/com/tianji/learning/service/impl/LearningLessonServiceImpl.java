@@ -3,7 +3,6 @@ package com.tianji.learning.service.impl;
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.tianji.api.client.course.CourseClient;
@@ -11,6 +10,7 @@ import com.tianji.api.dto.course.CourseSimpleInfoDTO;
 import com.tianji.common.domain.dto.PageDTO;
 import com.tianji.common.domain.query.PageQuery;
 import com.tianji.common.exceptions.BadRequestException;
+import com.tianji.common.utils.AssertUtils;
 import com.tianji.common.utils.BeanUtils;
 import com.tianji.common.utils.CollUtils;
 import com.tianji.common.utils.UserContext;
@@ -130,6 +130,7 @@ public class LearningLessonServiceImpl extends ServiceImpl<LearningLessonMapper,
      * @param userId 用户id
      * @param courseId 课程id
      */
+    @Override
     public void deleteCourseFromLesson(Long userId, Long courseId) {
         //1.判断当前登录用户id是否为null
         //调用这个方法有两种情况：用户直接删除已失效的课程 -> 在controller中调用，没有获取用户id，只传了null值
@@ -137,18 +138,25 @@ public class LearningLessonServiceImpl extends ServiceImpl<LearningLessonMapper,
         //listenCourseRefund已有健壮性判断，这里目的是在直接删除已失效的课程时，获取用户id
         if (userId == null) {
             userId = UserContext.getUser();
+            // 手动删除，需要校验课程状态是否为已失效
+            LearningLesson lesson = lambdaQuery()
+                    .eq(LearningLesson::getUserId, userId)
+                    .eq(LearningLesson::getCourseId, courseId)
+                    .one();
+            if (lesson == null) {
+                return;
+            }
+            if (lesson.getStatus() != LessonStatus.EXPIRED) {
+                throw new BadRequestException("只有已失效的课程才能手动从课表删除！");
+            }
+            removeById(lesson.getId());
+            return;
         }
 
-        //2.删除课程
-        //第一种写法：直接通过Wrappers.<LearningLesson>lambdaQuery()创建LambdaQueryWrapper对象，直接简洁
+        //2.删除课程 (退款场景)
         remove(Wrappers.<LearningLesson>lambdaQuery()
                 .eq(LearningLesson::getUserId, userId)
                 .eq(LearningLesson::getCourseId, courseId));
-
-        //第二种写法：先创建普通QueryWrapper对象，再通过.lambda()方法转换成LambdaQueryWrapper对象，多一次转换，冗余
-//        remove(new QueryWrapper<LearningLesson>().lambda()
-//                        .eq(LearningLesson::getUserId, userId)
-//                        .in(LearningLesson::getCourseId, courseId));
     }
 
     /**
@@ -156,6 +164,7 @@ public class LearningLessonServiceImpl extends ServiceImpl<LearningLessonMapper,
      * @param courseId 课程id
      * @return lessonId，如果是报名了则返回lessonId，否则返回空
      */
+    @Override
     public Long isLessonValid(Long courseId) {
         //1.获取当前登录用户id
         Long userId = UserContext.getUser();
@@ -184,6 +193,7 @@ public class LearningLessonServiceImpl extends ServiceImpl<LearningLessonMapper,
      * @param courseId 课程id
      * @return 课程状态
      */
+    @Override
     public LearningLessonVO queryLessonByCourseId(Long courseId) {
         //1.获取当前登录用户id
         Long userId = UserContext.getUser();
@@ -207,6 +217,7 @@ public class LearningLessonServiceImpl extends ServiceImpl<LearningLessonMapper,
      * @param courseId 课程id
      * @return 学习人数
      */
+    @Override
     public Integer countLearningLessonByCourse(Long courseId) {
         //统计课程学习人数就不需要获取当前登录用户id了，因为统计的课程学习人数不需要区分用户
         return lambdaQuery()
@@ -221,6 +232,26 @@ public class LearningLessonServiceImpl extends ServiceImpl<LearningLessonMapper,
     @Override
     public  LearningLesson queryByUserIdAndCourseId(Long userId, Long courseId){
         return getOne(buildUserIdAndCourseIdWrapper(userId, courseId)) ;
+    }
+
+    @Override
+    public void createLearningPlan(Long courseId, Integer freq) {
+        // 1.获取当前登录的用户
+        Long userId = UserContext.getUser();
+        // 2.查询课表中的指定课程有关的数据
+        LearningLesson lesson = queryByUserIdAndCourseId(userId, courseId);
+        AssertUtils.isNotNull(lesson,"课程信息不存在!");
+        // 3.修改数据
+        LearningLesson l =new LearningLesson();
+        l.setId(lesson.getId());
+        l.setWeekFreq(freq);
+
+        if (lesson.getPlanStatus() == PlanStatus.NO_PLAN) {
+            l.setPlanStatus(PlanStatus.PLAN_RUNNING);
+        }
+
+        updateById(l);
+
     }
 
     private Wrapper<LearningLesson> buildUserIdAndCourseIdWrapper(Long userId, Long courseId) {
