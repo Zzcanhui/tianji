@@ -317,7 +317,7 @@ public class LearningLessonServiceImpl extends ServiceImpl<LearningLessonMapper,
             LearningPlanVO vo = BeanUtils.copyBean(r, LearningPlanVO.class);
             // 4.4.2.填充课程详细信息
             CourseSimpleInfoDTO cInfo = cMap.get(r.getCourseId());
-            if (cInfo == null) {
+            if (cInfo != null) {
                 vo.setCourseName(cInfo.getName());
                 vo.setSections(cInfo.getSectionNum());
             }
