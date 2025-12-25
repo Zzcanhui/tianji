@@ -336,4 +336,16 @@ public class LearningLessonServiceImpl extends ServiceImpl<LearningLessonMapper,
         return queryWrapper;
     }
 
+    @Override
+    public void checkLessonStatus() {
+        // 1.获取当前时间
+        LocalDateTime now = LocalDateTime.now();
+        // 2.更新状态：expire_time < now 且 status != EXPIRED
+        lambdaUpdate()
+                .set(LearningLesson::getStatus, LessonStatus.EXPIRED)
+                .lt(LearningLesson::getExpireTime, now)
+                .ne(LearningLesson::getStatus, LessonStatus.EXPIRED)
+                .update();
+    }
+
 }
