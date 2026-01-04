@@ -27,6 +27,10 @@ public class MessageApplication {
         if (env.getProperty("server.ssl.key-store") != null) {
             protocol = "https";
         }
+        String host = env.getProperty("spring.cloud.nacos.discovery.ip");
+        if (host == null) {
+            host = InetAddress.getLocalHost().getHostAddress();
+        }
         log.info("--/\n---------------------------------------------------------------------------------------\n\t" +
                         "Application '{}' is running! Access URLs:\n\t" +
                         "Local: \t\t{}://localhost:{}\n\t" +
@@ -37,7 +41,7 @@ public class MessageApplication {
                 protocol,
                 env.getProperty("server.port"),
                 protocol,
-                InetAddress.getLocalHost().getHostAddress(),
+                host,
                 env.getProperty("server.port"),
                 env.getActiveProfiles());
 

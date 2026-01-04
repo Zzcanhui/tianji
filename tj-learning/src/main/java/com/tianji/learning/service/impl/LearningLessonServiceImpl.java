@@ -8,6 +8,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.tianji.api.client.course.CatalogueClient;
 import com.tianji.api.client.course.CourseClient;
 import com.tianji.api.dto.IdAndNumDTO;
+import com.tianji.api.dto.course.CataSimpleInfoDTO;
 import com.tianji.api.dto.course.CourseSimpleInfoDTO;
 import com.tianji.common.domain.dto.PageDTO;
 import com.tianji.common.domain.query.PageQuery;
@@ -346,6 +347,41 @@ public class LearningLessonServiceImpl extends ServiceImpl<LearningLessonMapper,
                 .lt(LearningLesson::getExpireTime, now)
                 .ne(LearningLesson::getStatus, LessonStatus.EXPIRED)
                 .update();
+    }
+
+    @Override
+    public LearningLessonVO queryMyCurrentLesson() {
+        // 1.获取当前登录用户
+        Long userId = UserContext.getUser();
+        // 2.查询正在学习的课程中，最近一次学习的一条数据  latest_learn_time
+        LearningLesson lesson = lambdaQuery()
+                .eq(LearningLesson::getUserId, userId)
+                .eq(LearningLesson::getStatus, LessonStatus.LEARNING)
+                .orderByDesc(LearningLesson::getLatestLearnTime)
+                .last("LIMIT 1")
+                .one();
+        if (lesson == null) {
+            return null;
+        }
+        // 3.转换为VO
+        LearningLessonVO vo = BeanUtils.copyBean(lesson, LearningLessonVO.class);
+        // 4.查询课程信息
+        CourseSimpleInfoDTO cInfo = courseClient.getSimpleInfoList(CollUtils.singletonList(lesson.getCourseId())).get(0);
+        if (cInfo != null) {
+            vo.setCourseName(cInfo.getName());
+            vo.setCourseCoverUrl(cInfo.getCoverUrl());
+            vo.setSections(cInfo.getSectionNum());
+        }
+        // 5.查询小节信息
+        if (lesson.getLatestSectionId() != null) {
+            List<CataSimpleInfoDTO> cataInfos = catalogueClient.batchQueryCatalogue(CollUtils.singletonList(lesson.getLatestSectionId()));
+            if (CollUtils.isNotEmpty(cataInfos)) {
+                CataSimpleInfoDTO cataInfo = cataInfos.get(0);
+                vo.setLatestSectionName(cataInfo.getName());
+                vo.setLatestSectionIndex(cataInfo.getCIndex());
+            }
+        }
+        return vo;
     }
 
 }

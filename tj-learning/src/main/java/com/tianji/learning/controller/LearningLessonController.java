@@ -6,7 +6,6 @@ import com.tianji.common.domain.query.PageQuery;
 import com.tianji.learning.domain.dto.LearningPlanDTO;
 import com.tianji.learning.domain.vo.LearningLessonVO;
 import com.tianji.learning.domain.vo.LearningPlanPageVO;
-import com.tianji.learning.domain.vo.LearningPlanVO;
 import com.tianji.learning.service.ILearningLessonService;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -52,6 +51,12 @@ public class LearningLessonController {
     @GetMapping("/{courseId}/valid")
     Long isLessonValid(@PathVariable("courseId") Long courseId){
         return lessonService.isLessonValid(courseId);
+    }
+
+    @GetMapping("/now")
+    @ApiOperation("查询我正在学习的课程")
+    public LearningLessonVO queryMyCurrentLesson() {
+        return lessonService.queryMyCurrentLesson();
     }
 
     /**

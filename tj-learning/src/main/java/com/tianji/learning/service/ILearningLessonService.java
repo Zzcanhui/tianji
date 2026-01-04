@@ -41,4 +41,6 @@ public interface ILearningLessonService extends IService<LearningLesson> {
     LearningPlanPageVO queryMyPlans(PageQuery query);
 
     void checkLessonStatus();
+
+    LearningLessonVO queryMyCurrentLesson();
 }
