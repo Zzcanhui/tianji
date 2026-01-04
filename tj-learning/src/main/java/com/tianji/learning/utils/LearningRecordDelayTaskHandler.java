@@ -18,8 +18,10 @@ import javax.annotation.PreDestroy;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.DelayQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Component
@@ -31,29 +33,53 @@ public class LearningRecordDelayTaskHandler {
     private final ILearningLessonService lessonService;
     private final DelayQueue<DelayTask<RecordTaskDate>> queue = new DelayQueue<>();
     private final static String REDIS_KEY_TEMPLATE = "learning:record:{}";
-    private static volatile boolean begin =true;
+    private static volatile boolean begin = true;
 
+    // 线程池，核心线程数与CPU核数一致
+    private static final int CORE_POOL_SIZE = Runtime.getRuntime().availableProcessors();
+    private ExecutorService executorService;
 
     @PostConstruct
-    public void init(){
-        CompletableFuture.runAsync(this::handleDelayTask);
+    public void init() {
+        // 创建固定大小的线程池，线程数与CPU核数一致
+        executorService = Executors.newFixedThreadPool(CORE_POOL_SIZE);
+        // 提交多个任务到线程池，每个线程都从队列中获取任务执行
+        for (int i = 0; i < CORE_POOL_SIZE; i++) {
+            executorService.submit(this::handleDelayTask);
+        }
+        log.debug("延迟任务线程池启动，线程数: {}", CORE_POOL_SIZE);
     }
 
     @PreDestroy
-    public void destroy(){
+    public void destroy() {
         begin = false;
         log.debug("延迟任务停止执行!");
+        if (executorService != null) {
+            executorService.shutdown();
+            try {
+                // 等待线程池中的任务执行完成
+                if (!executorService.awaitTermination(60, TimeUnit.SECONDS)) {
+                    executorService.shutdownNow();
+                    log.warn("延迟任务线程池强制关闭");
+                }
+            } catch (InterruptedException e) {
+                executorService.shutdownNow();
+                Thread.currentThread().interrupt();
+                log.error("延迟任务线程池关闭被中断", e);
+            }
+        }
+        log.debug("延迟任务线程池已关闭");
     }
 
     public void handleDelayTask() {
-        while (begin){
+        while (begin) {
             try {
                 // 1.获取到期的延迟任务
                 DelayTask<RecordTaskDate> task = queue.take();
                 RecordTaskDate date = task.getData();
                 // 2.查询Redis缓存
                 LearningRecord record = readRecordCache(date.getLessonId(), date.getSectionId());
-                if (record==null) {
+                if (record == null) {
                     continue;
                 }
                 // 3.比较数据,moment
@@ -95,7 +121,7 @@ public class LearningRecordDelayTaskHandler {
             String json = JsonUtils.toJsonStr(new RecordCacheDate(record));
             // 2.写入redis
             String key = StringUtils.format(REDIS_KEY_TEMPLATE, record.getLessonId());
-            redisTemplate.opsForHash().put(key, record.getSectionId().toString(),json);
+            redisTemplate.opsForHash().put(key, record.getSectionId().toString(), json);
             // 3.添加缓存过期时间
             redisTemplate.expire(key, Duration.ofMinutes(1));
         } catch (Exception e) {
@@ -122,9 +148,9 @@ public class LearningRecordDelayTaskHandler {
     }
 
     public void cleanRecordCache(Long lessonId, Long sectionId) {
-            // 删除redis数据
-            String key = StringUtils.format(REDIS_KEY_TEMPLATE, lessonId);
-            redisTemplate.opsForHash().delete(key, sectionId.toString());
+        // 删除redis数据
+        String key = StringUtils.format(REDIS_KEY_TEMPLATE, lessonId);
+        redisTemplate.opsForHash().delete(key, sectionId.toString());
     }
 
     @Data
@@ -143,7 +169,7 @@ public class LearningRecordDelayTaskHandler {
 
     @Data
     @NoArgsConstructor
-    private static class RecordTaskDate{
+    private static class RecordTaskDate {
         private Long lessonId;
         private Long sectionId;
         private Integer moment;
