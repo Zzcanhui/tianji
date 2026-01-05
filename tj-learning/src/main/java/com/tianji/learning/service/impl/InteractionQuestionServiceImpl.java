@@ -33,8 +33,7 @@ import java.util.stream.Collectors;
  */
 @Service
 @RequiredArgsConstructor
-public class InteractionQuestionServiceImpl extends ServiceImpl<InteractionQuestionMapper, InteractionQuestion>
-        implements IInteractionQuestionService {
+public class InteractionQuestionServiceImpl extends ServiceImpl<InteractionQuestionMapper, InteractionQuestion> implements IInteractionQuestionService {
 
     private final IInteractionReplyService replyService;
     private final UserClient userClient;
@@ -130,5 +129,28 @@ public class InteractionQuestionServiceImpl extends ServiceImpl<InteractionQuest
         }
 
         return PageDTO.of(page, voList);
+    }
+
+    @Override
+    public QuestionVO queryQuestionById(Long id) {
+        // 1.根据id查询数据
+        InteractionQuestion question = getById(id);
+        // 2.数据校验
+        if (question == null || question.getHidden()) {
+            // 问题不存在或被隐藏，直接返回null
+            return null;
+        }
+        // 3.查询提问者信息
+        UserDTO user =null;
+        if (!question.getAnonymity()) {// 不是匿名问题，才需要查询提问者
+            user = userClient.queryUserById(question.getUserId());
+        }
+        // 4.封装VO
+        QuestionVO vo = BeanUtils.copyBean(question, QuestionVO.class);
+        if (user != null) {
+            vo.setUserName(user.getName());
+            vo.setUserIcon(user.getIcon());
+        }
+        return vo;
     }
 }
