@@ -1,6 +1,5 @@
 package com.tianji.learning.controller;
 
-
 import com.tianji.common.domain.dto.PageDTO;
 import com.tianji.learning.domain.dto.QuestionFormDTO;
 import com.tianji.learning.domain.query.QuestionAdminPageQuery;
@@ -33,9 +32,20 @@ public class InteractionQuestionAdminController {
 
     @ApiOperation("管理端分页查询互动问题")
     @GetMapping("page")
-    public PageDTO<QuestionAdminVO> queryQuestionPageAdmin(QuestionAdminPageQuery query){
+    public PageDTO<QuestionAdminVO> queryQuestionPageAdmin(QuestionAdminPageQuery query) {
         return questionService.queryQuestionPageAdmin(query);
     }
 
+    @ApiOperation("管理端隐藏或显示问题")
+    @PutMapping("/{id}/hidden/{hidden}")
+    public void hiddenQuestion(@PathVariable("id") Long id, @PathVariable("hidden") Boolean hidden) {
+        questionService.hiddenQuestion(id, hidden);
+    }
+
+    @ApiOperation("管理端根据id查询问题详细")
+    @GetMapping("/{id}")
+    public QuestionAdminVO queryQuestionById(@PathVariable("id") Long id) {
+        return questionService.queryQuestionByIdAdmin(id);
+    }
 
 }

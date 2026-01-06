@@ -8,6 +8,7 @@ import com.tianji.api.client.course.CourseClient;
 import com.tianji.api.client.search.SearchClient;
 import com.tianji.api.client.user.UserClient;
 import com.tianji.api.dto.course.CataSimpleInfoDTO;
+import com.tianji.api.dto.course.CourseFullInfoDTO;
 import com.tianji.api.dto.course.CourseSimpleInfoDTO;
 import com.tianji.api.dto.user.UserDTO;
 import com.tianji.common.domain.dto.PageDTO;
@@ -23,6 +24,7 @@ import com.tianji.learning.domain.query.QuestionAdminPageQuery;
 import com.tianji.learning.domain.query.QuestionPageQuery;
 import com.tianji.learning.domain.vo.QuestionAdminVO;
 import com.tianji.learning.domain.vo.QuestionVO;
+import com.tianji.learning.enums.QuestionStatus;
 import com.tianji.learning.mapper.InteractionQuestionMapper;
 import com.tianji.learning.service.IInteractionQuestionService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -293,5 +295,77 @@ public class InteractionQuestionServiceImpl extends ServiceImpl<InteractionQuest
         replyService.lambdaUpdate()
                 .eq(InteractionReply::getQuestionId, id)
                 .remove();
+    }
+
+    @Override
+    public void hiddenQuestion(Long id, Boolean hidden) {
+        // 1.查询问题是否存在
+        InteractionQuestion question = getById(id);
+        if (question == null) {
+            throw new BadRequestException("问题不存在");
+        }
+        // 2.更新hidden状态
+        InteractionQuestion updateQuestion = new InteractionQuestion();
+        updateQuestion.setId(id);
+        updateQuestion.setHidden(hidden);
+        updateById(updateQuestion);
+    }
+
+    @Override
+    public QuestionAdminVO queryQuestionByIdAdmin(Long id) {
+        // 1.根据id查询问题
+        InteractionQuestion question = getById(id);
+        if (question == null) {
+            return null;
+        }
+        // 2.如果问题状态为未查看，更新为已查看
+        if (QuestionStatus.UN_CHECK.equals(question.getStatus())) {
+            InteractionQuestion updateQuestion = new InteractionQuestion();
+            updateQuestion.setId(id);
+            updateQuestion.setStatus(QuestionStatus.CHECKED);
+            updateById(updateQuestion);
+        }
+        // 3.转换VO
+        QuestionAdminVO vo = BeanUtils.copyBean(question, QuestionAdminVO.class);
+
+        // 3.查询提问者信息
+        UserDTO user = userClient.queryUserById(question.getUserId());
+        if (user != null) {
+            vo.setUserName(user.getName());
+            vo.setUserIcon(user.getIcon());
+        }
+
+        // 4.查询课程信息（包含老师ID）
+        CourseFullInfoDTO courseInfo = courseClient.getCourseInfoById(question.getCourseId(), false, true);
+        if (courseInfo != null) {
+            vo.setCourseName(courseInfo.getName());
+            vo.setCategoryName(categoryCache.getCategoryNames(courseInfo.getCategoryIds()));
+            // 4.1.查询老师信息
+            List<Long> teacherIds = courseInfo.getTeacherIds();
+            if (CollUtils.isNotEmpty(teacherIds)) {
+                List<UserDTO> teachers = userClient.queryUserByIds(teacherIds);
+                if (CollUtils.isNotEmpty(teachers)) {
+                    String teacherNames = teachers.stream()
+                            .map(UserDTO::getName)
+                            .collect(Collectors.joining("/"));
+                    vo.setTeacherName(teacherNames);
+                }
+            }
+        }
+
+        // 5.查询章节信息
+        Set<Long> cataIds = new HashSet<>();
+        cataIds.add(question.getChapterId());
+        cataIds.add(question.getSectionId());
+        cataIds.remove(null);
+        if (CollUtils.isNotEmpty(cataIds)) {
+            List<CataSimpleInfoDTO> cataInfos = catalogueClient.batchQueryCatalogue(cataIds);
+            Map<Long, String> cataMap = cataInfos.stream()
+                    .collect(Collectors.toMap(CataSimpleInfoDTO::getId, CataSimpleInfoDTO::getName));
+            vo.setChapterName(cataMap.getOrDefault(question.getChapterId(), ""));
+            vo.setSectionName(cataMap.getOrDefault(question.getSectionId(), ""));
+        }
+
+        return vo;
     }
 }

@@ -7,7 +7,7 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 @Data
-@ApiModel(description = "用户端互动问题信息")
+@ApiModel(description = "管理端互动问题信息")
 public class QuestionAdminVO {
     @ApiModelProperty("主键id")
     private Long id;
@@ -24,8 +24,12 @@ public class QuestionAdminVO {
     @ApiModelProperty("是否被隐藏")
     private Boolean hidden;
 
+    @ApiModelProperty("提问者id")
+    private Long userId;
     @ApiModelProperty("提问者昵称")
     private String userName;
+    @ApiModelProperty("提问者头像")
+    private String userIcon;
     @ApiModelProperty("课程名称")
     private String courseName;
     @ApiModelProperty("章名称")
@@ -34,19 +38,6 @@ public class QuestionAdminVO {
     private String sectionName;
     @ApiModelProperty("三级分类名称，中间使用/隔开")
     private String categoryName;
+    @ApiModelProperty("课程负责老师名称，多个老师使用/隔开")
+    private String teacherName;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
