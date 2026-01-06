@@ -22,23 +22,11 @@ import javax.validation.Valid;
  * @since 2026-01-05
  */
 @RestController
-@RequestMapping("/replies")
-@Api(tags = "互动问题回答或评论相关接口")
+@RequestMapping("/admin/replies")
+@Api(tags = "管理端互动问题回答或评论相关接口")
 @RequiredArgsConstructor
-public class InteractionReplyController {
+public class InteractionReplyAdminController {
 
-    private final IInteractionReplyService replyService;
 
-    @ApiOperation("新增回答或评论")
-    @PostMapping
-    public void saveReply(@Valid @RequestBody ReplyDTO replyDTO) {
-        replyService.saveReply(replyDTO);
-    }
-
-    @ApiOperation("分页查询互动问题的回答或评论")
-    @GetMapping("page")
-    public PageDTO<ReplyVO> queryReplyPage(ReplyPageQuery query) {
-        return replyService.queryReplyPage(query);
-    }
 
 }

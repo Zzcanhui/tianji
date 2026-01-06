@@ -24,7 +24,7 @@ import javax.validation.Valid;
  */
 @RestController
 @RequestMapping("/admin/questions")
-@Api(tags = "互动提问相关接口")
+@Api(tags = "管理端互动提问相关接口")
 @RequiredArgsConstructor
 public class InteractionQuestionAdminController {
 
@@ -47,5 +47,7 @@ public class InteractionQuestionAdminController {
     public QuestionAdminVO queryQuestionById(@PathVariable("id") Long id) {
         return questionService.queryQuestionByIdAdmin(id);
     }
+
+
 
 }
