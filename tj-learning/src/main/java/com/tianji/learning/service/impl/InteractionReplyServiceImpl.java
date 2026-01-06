@@ -78,6 +78,22 @@ public class InteractionReplyServiceImpl extends ServiceImpl<InteractionReplyMap
     @Override
     @SuppressWarnings("unchecked")
     public PageDTO<ReplyVO> queryReplyPage(ReplyPageQuery query) {
+        return queryReplyPageInternal(query, false);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public PageDTO<ReplyVO> queryReplyPageAdmin(ReplyPageQuery query) {
+        return queryReplyPageInternal(query, true);
+    }
+
+    /**
+     * 分页查询回复列表的内部方法
+     * 
+     * @param query   查询条件
+     * @param isAdmin 是否是管理端查询：true-管理端（不过滤隐藏、无视匿名），false-用户端（过滤隐藏、尊重匿名）
+     */
+    private PageDTO<ReplyVO> queryReplyPageInternal(ReplyPageQuery query, boolean isAdmin) {
         // 1.校验参数：questionId和answerId至少要有一个
         Long questionId = query.getQuestionId();
         Long answerId = query.getAnswerId();
@@ -86,10 +102,11 @@ public class InteractionReplyServiceImpl extends ServiceImpl<InteractionReplyMap
         }
 
         // 2.分页查询回复数据，按点赞数排序
+        // 管理端不过滤隐藏的回复，用户端只查询未隐藏的
         Page<InteractionReply> page = lambdaQuery()
                 .eq(questionId != null, InteractionReply::getQuestionId, questionId)
                 .eq(InteractionReply::getAnswerId, answerId == null ? 0L : answerId)
-                .eq(InteractionReply::getHidden, false)
+                .eq(!isAdmin, InteractionReply::getHidden, false)
                 .orderByDesc(InteractionReply::getLikedTimes)
                 .page(query.toMpPage());
         List<InteractionReply> records = page.getRecords();
@@ -100,7 +117,8 @@ public class InteractionReplyServiceImpl extends ServiceImpl<InteractionReplyMap
         // 3.收集用户id（回复者id和目标用户id）
         Set<Long> userIds = new HashSet<>();
         for (InteractionReply r : records) {
-            if (!r.getAnonymity()) { // 非匿名才需要查询用户信息
+            // 管理端无视匿名，所有回复都要查询用户信息；用户端只有非匿名才查询
+            if (isAdmin || !r.getAnonymity()) {
                 userIds.add(r.getUserId());
             }
             if (r.getTargetUserId() != null) {
@@ -122,8 +140,8 @@ public class InteractionReplyServiceImpl extends ServiceImpl<InteractionReplyMap
             ReplyVO vo = BeanUtils.copyBean(r, ReplyVO.class);
             voList.add(vo);
 
-            // 5.1.封装回复者信息（非匿名时）
-            if (!r.getAnonymity()) {
+            // 5.1.封装回复者信息（管理端无视匿名，用户端非匿名时才返回）
+            if (isAdmin || !r.getAnonymity()) {
                 UserDTO user = userMap.get(r.getUserId());
                 if (user != null) {
                     vo.setUserName(user.getName());

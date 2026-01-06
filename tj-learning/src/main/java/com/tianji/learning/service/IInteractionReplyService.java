@@ -22,4 +22,6 @@ public interface IInteractionReplyService extends IService<InteractionReply> {
     void saveReply(@Valid ReplyDTO replyDTO);
 
     PageDTO<ReplyVO> queryReplyPage(ReplyPageQuery query);
+
+    PageDTO<ReplyVO> queryReplyPageAdmin(ReplyPageQuery query);
 }

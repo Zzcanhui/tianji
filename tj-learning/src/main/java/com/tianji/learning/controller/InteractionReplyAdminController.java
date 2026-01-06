@@ -1,6 +1,5 @@
 package com.tianji.learning.controller;
 
-
 import com.tianji.common.domain.dto.PageDTO;
 import com.tianji.learning.domain.dto.ReplyDTO;
 import com.tianji.learning.domain.query.ReplyPageQuery;
@@ -27,6 +26,11 @@ import javax.validation.Valid;
 @RequiredArgsConstructor
 public class InteractionReplyAdminController {
 
+    private final IInteractionReplyService replyService;
 
-
+    @ApiOperation("管理端分页查询互动问题的回答或评论")
+    @GetMapping("page")
+    public PageDTO<ReplyVO> queryReplyPageAdmin(ReplyPageQuery query) {
+        return replyService.queryReplyPageAdmin(query);
+    }
 }
