@@ -24,4 +24,6 @@ public interface IInteractionReplyService extends IService<InteractionReply> {
     PageDTO<ReplyVO> queryReplyPage(ReplyPageQuery query);
 
     PageDTO<ReplyVO> queryReplyPageAdmin(ReplyPageQuery query);
+
+    void hiddenReply(Long id, Boolean hidden);
 }

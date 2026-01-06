@@ -161,4 +161,27 @@ public class InteractionReplyServiceImpl extends ServiceImpl<InteractionReplyMap
 
         return PageDTO.of(page, voList);
     }
+
+    @Override
+    public void hiddenReply(Long id, Boolean hidden) {
+        // 1.查询回复是否存在
+        InteractionReply reply = getById(id);
+        if (reply == null) {
+            throw new BadRequestException("回复不存在");
+        }
+
+        // 2.更新当前回复的hidden状态
+        InteractionReply updateReply = new InteractionReply();
+        updateReply.setId(id);
+        updateReply.setHidden(hidden);
+        updateById(updateReply);
+
+        // 3.如果是回答（answerId为0或null），则同时隐藏/显示该回答下的所有评论
+        if (reply.getAnswerId() == null || reply.getAnswerId() == 0L) {
+            lambdaUpdate()
+                    .eq(InteractionReply::getAnswerId, id)
+                    .set(InteractionReply::getHidden, hidden)
+                    .update();
+        }
+    }
 }

@@ -33,4 +33,10 @@ public class InteractionReplyAdminController {
     public PageDTO<ReplyVO> queryReplyPageAdmin(ReplyPageQuery query) {
         return replyService.queryReplyPageAdmin(query);
     }
+
+    @ApiOperation("管理端显示或隐藏评论")
+    @PutMapping("{id}/hidden/{hidden}")
+    public void hiddenReply(@PathVariable("id") Long id, @PathVariable("hidden") Boolean hidden) {
+        replyService.hiddenReply(id, hidden);
+    }
 }
