@@ -15,6 +15,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.amqp.core.AmqpTemplate;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+
 import static com.tianji.common.constants.MqConstants.Exchange.LIKE_RECORD_EXCHANGE;
 import static com.tianji.common.constants.MqConstants.Key.LIKED_TIMES_KEY_TEMPLATE;
 
@@ -49,6 +53,20 @@ public class LikedRecordServiceImpl extends ServiceImpl<LikedRecordMapper, Liked
                 LIKE_RECORD_EXCHANGE,
                 StringUtils.format(LIKED_TIMES_KEY_TEMPLATE, recordDTO.getBizType()),
                 LikeTimesDTO.of(recordDTO.getBizId(), likeTimes));
+    }
+
+    @Override
+    public Set<Long> isBizLiked(List<Long> bizIds) {
+        // 1.获取登录用户id
+        Long userId = UserContext.getUser();
+
+        // 2.查询点赞状态
+        List<LikedRecord> list = lambdaQuery()
+                .in(LikedRecord::getBizId, bizIds)
+                .eq(LikedRecord::getUserId, userId)
+                .list();
+        // 3.返回结果
+        return list.stream().map(LikedRecord::getBizId).collect(Collectors.toSet());
     }
 
     private boolean unlike(LikeRecordFormDTO recordDTO) {
