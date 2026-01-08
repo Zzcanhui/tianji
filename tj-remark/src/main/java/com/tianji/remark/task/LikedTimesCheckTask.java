@@ -1,26 +1,22 @@
 package com.tianji.remark.task;
 
+import com.tianji.remark.config.LikedTimesTaskProperties;
 import com.tianji.remark.service.ILikedRecordService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.w3c.dom.stylesheets.LinkStyle;
-
-import java.util.List;
 
 @Component
 @RequiredArgsConstructor
 public class LikedTimesCheckTask {
 
-    private static final List<String> BIZ_TYPES = List.of("QA", "NOTE");
-    private static final int MAX_BIZ_SIZE = 50;
-
     private final ILikedRecordService recordService;
+    private final LikedTimesTaskProperties properties;
 
-    @Scheduled(fixedDelay = 20000)
+    @Scheduled(fixedDelayString = "${tj.remark.liked-times-task.fixed-delay:20000}")
     public void checkLikedTimes() {
-        for (String bizType : BIZ_TYPES) {
-            recordService.readLikedTimesAndSendMessage(bizType, MAX_BIZ_SIZE);
+        for (String bizType : properties.getBizTypes()) {
+            recordService.readLikedTimesAndSendMessage(bizType, properties.getMaxBizSize());
         }
     }
 }
