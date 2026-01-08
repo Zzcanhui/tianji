@@ -2,6 +2,7 @@ package com.tianji.learning.service.impl;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.tianji.api.client.remark.RemarkClient;
 import com.tianji.api.client.user.UserClient;
 import com.tianji.api.dto.user.UserDTO;
 import com.tianji.common.domain.dto.PageDTO;
@@ -41,6 +42,7 @@ public class InteractionReplyServiceImpl extends ServiceImpl<InteractionReplyMap
     // 解决循环依赖问题，因为InteractionReplyServiceImpl依赖InteractionQuestionServiceImpl，而InteractionQuestionServiceImpl依赖InteractionReplyServiceImpl
     private final InteractionQuestionMapper questionMapper;
     private final UserClient userClient;
+    private final RemarkClient remarkClient;
 
     @Override
     @Transactional
@@ -134,13 +136,17 @@ public class InteractionReplyServiceImpl extends ServiceImpl<InteractionReplyMap
             userMap = users.stream().collect(Collectors.toMap(UserDTO::getId, u -> u));
         }
 
-        // 5.封装VO
+        // 5.查询当前用户是否点赞过这些回复
+        Set<Long> replyIds = records.stream().map(InteractionReply::getId).collect(Collectors.toSet());
+        Set<Long> bizLikedIds = remarkClient.isBizLiked(replyIds);
+
+        // 6.封装VO
         List<ReplyVO> voList = new ArrayList<>(records.size());
         for (InteractionReply r : records) {
             ReplyVO vo = BeanUtils.copyBean(r, ReplyVO.class);
             voList.add(vo);
 
-            // 5.1.封装回复者信息（管理端无视匿名，用户端非匿名时才返回）
+            // 6.1.封装回复者信息（管理端无视匿名，用户端非匿名时才返回）
             if (isAdmin || !r.getAnonymity()) {
                 UserDTO user = userMap.get(r.getUserId());
                 if (user != null) {
@@ -150,13 +156,16 @@ public class InteractionReplyServiceImpl extends ServiceImpl<InteractionReplyMap
                 }
             }
 
-            // 5.2.封装目标用户昵称（评论特有）
+            // 6.2.封装目标用户昵称（评论特有）
             if (r.getTargetUserId() != null) {
                 UserDTO targetUser = userMap.get(r.getTargetUserId());
                 if (targetUser != null) {
                     vo.setTargetUserName(targetUser.getName());
                 }
             }
+
+            // 6.3.封装当前用户是否点赞过该回复
+            vo.setLiked(bizLikedIds.contains(r.getId()));
         }
 
         return PageDTO.of(page, voList);

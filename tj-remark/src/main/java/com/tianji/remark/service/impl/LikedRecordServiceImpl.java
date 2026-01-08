@@ -69,6 +69,11 @@ public class LikedRecordServiceImpl extends ServiceImpl<LikedRecordMapper, Liked
         return list.stream().map(LikedRecord::getBizId).collect(Collectors.toSet());
     }
 
+    @Override
+    public void readLikedTimesAndSendMessage(String bizType, int maxBizSize) {
+
+    }
+
     private boolean unlike(LikeRecordFormDTO recordDTO) {
         return remove(new QueryWrapper<LikedRecord>().lambda()
                 .eq(LikedRecord::getUserId, UserContext.getUser())

@@ -1,9 +1,9 @@
 package com.tianji.remark.service.impl;
 
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.tianji.api.dto.remark.LikeTimesDTO;
 import com.tianji.common.autoconfigure.mq.RabbitMqHelper;
+import com.tianji.common.utils.CollUtils;
 import com.tianji.common.utils.StringUtils;
 import com.tianji.common.utils.UserContext;
 import com.tianji.remark.constants.RedisConstants;
@@ -12,14 +12,13 @@ import com.tianji.remark.domain.po.LikedRecord;
 import com.tianji.remark.mapper.LikedRecordMapper;
 import com.tianji.remark.service.ILikedRecordService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.dao.DataAccessException;
-import org.springframework.data.redis.connection.RedisConnection;
 import org.springframework.data.redis.connection.StringRedisConnection;
 import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.stereotype.Service;
 
-import java.util.HashSet;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -91,6 +90,32 @@ public class LikedRecordServiceRedisImpl extends ServiceImpl<LikedRecordMapper, 
                 .filter(i -> (Boolean) objects.get(i))
                 .mapToObj(bizIds::get)
                 .collect(Collectors.toSet());
+    }
+
+    @Override
+    public void readLikedTimesAndSendMessage(String bizType, int maxBizSize) {
+        // 1.读取并移除Redis中缓存的点赞总数
+        // 1.1 构建Key
+        String key = RedisConstants.LIKES_TIMER_KEY_PREFIX + bizType;
+        // 1.2 执行ZPOPMIN命令
+        Set<ZSetOperations.TypedTuple<String>> tuples = redisTemplate.opsForZSet().popMin(key, maxBizSize);
+        if (CollUtils.isEmpty(tuples)) {
+            return;
+        }
+        // 2.数据转换
+        List<LikeTimesDTO> list = new ArrayList<>(tuples.size());
+        for (ZSetOperations.TypedTuple<String> tuple : tuples) {
+            String bizId = tuple.getValue();
+            Double likedTimes = tuple.getScore();
+            if (bizId == null || likedTimes == null) {
+                continue;
+            }
+            list.add(LikeTimesDTO.of(Long.valueOf(bizId), likedTimes.intValue()));
+        }
+        // 3.发送MQ消息
+        mqHelper.send(LIKE_RECORD_EXCHANGE,
+                StringUtils.format(LIKED_TIMES_KEY_TEMPLATE, bizType),
+                list);
     }
 
     private boolean unlike(LikeRecordFormDTO recordDTO) {

@@ -12,6 +12,9 @@ import org.springframework.amqp.rabbit.annotation.QueueBinding;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import static com.tianji.common.constants.MqConstants.Exchange.LIKE_RECORD_EXCHANGE;
 import static com.tianji.common.constants.MqConstants.Key.QA_LIKED_TIMES_KEY;
 
@@ -27,13 +30,16 @@ public class LikeTimesChangeListener {
             exchange = @Exchange(name = LIKE_RECORD_EXCHANGE, type = ExchangeTypes.TOPIC),
             key = QA_LIKED_TIMES_KEY
     ))
-    public void listenReplyLikedTimesChange(LikeTimesDTO likeTimesDTO) {
-        log.debug("“监听到回答或评论的点赞数变更的消息：{}，点赞数：{}",
-                likeTimesDTO.getBizId(), likeTimesDTO.getLikeTimes());
+    public void listenReplyLikedTimesChange(List<LikeTimesDTO> likeTimesDTOs) {
+        log.debug("“监听到回答或评论的点赞数变更");
 
-        InteractionReply r = new InteractionReply();
-        r.setId(likeTimesDTO.getBizId());
-        r.setLikedTimes(likeTimesDTO.getLikeTimes());
-        replyService.updateById(r);
+        List<InteractionReply> list =new ArrayList<>(likeTimesDTOs.size());
+        for (LikeTimesDTO dto : likeTimesDTOs) {
+            InteractionReply r = new InteractionReply();
+            r.setId(dto.getBizId());
+            r.setLikedTimes(dto.getLikeTimes());
+            list.add(r);
+        }
+        replyService.updateBatchById(list);
     }
 }
