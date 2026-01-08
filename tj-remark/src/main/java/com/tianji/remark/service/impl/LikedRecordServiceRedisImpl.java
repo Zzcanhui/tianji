@@ -1,18 +1,18 @@
 package com.tianji.remark.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.baomidou.mybatisplus.extension.conditions.query.QueryChainWrapper;
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.tianji.api.dto.remark.LikeTimesDTO;
 import com.tianji.common.autoconfigure.mq.RabbitMqHelper;
 import com.tianji.common.utils.StringUtils;
 import com.tianji.common.utils.UserContext;
+import com.tianji.remark.constants.RedisConstants;
 import com.tianji.remark.domain.dto.LikeRecordFormDTO;
 import com.tianji.remark.domain.po.LikedRecord;
 import com.tianji.remark.mapper.LikedRecordMapper;
 import com.tianji.remark.service.ILikedRecordService;
-import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.RequiredArgsConstructor;
-import org.springframework.amqp.core.AmqpTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -30,11 +30,12 @@ import static com.tianji.common.constants.MqConstants.Key.LIKED_TIMES_KEY_TEMPLA
  * @author author
  * @since 2026-01-06
  */
-//@Service
+@Service
 @RequiredArgsConstructor
-public class LikedRecordServiceImpl extends ServiceImpl<LikedRecordMapper, LikedRecord> implements ILikedRecordService {
+public class LikedRecordServiceRedisImpl extends ServiceImpl<LikedRecordMapper, LikedRecord> implements ILikedRecordService {
 
     private final RabbitMqHelper mqHelper;
+    private final StringRedisTemplate redisTemplate;
 
     @Override
     public void addLikeRecord(LikeRecordFormDTO recordDTO) {
@@ -45,14 +46,18 @@ public class LikedRecordServiceImpl extends ServiceImpl<LikedRecordMapper, Liked
             return;
         }
         // 3.如果执行成功，统计点赞总数
-        Integer likeTimes = lambdaQuery()
-                .eq(LikedRecord::getBizId, recordDTO.getBizId())
-                .count();
-        // 4.发送MQ通知
-        mqHelper.send(
-                LIKE_RECORD_EXCHANGE,
-                StringUtils.format(LIKED_TIMES_KEY_TEMPLATE, recordDTO.getBizType()),
-                LikeTimesDTO.of(recordDTO.getBizId(), likeTimes));
+        Long likeTimes = redisTemplate.opsForSet()
+                .size(RedisConstants.LIKES_BIZ_KEY_PREFIX +  recordDTO.getBizId());
+        if (likeTimes == null) {
+            return;
+        }
+        // 4.缓存点赞总数到Redis
+        redisTemplate.opsForZSet().add(
+                RedisConstants.LIKES_TIMER_KEY_PREFIX + recordDTO.getBizType(),
+                recordDTO.getBizId().toString(),
+                likeTimes
+        );
+
     }
 
     @Override
@@ -70,29 +75,22 @@ public class LikedRecordServiceImpl extends ServiceImpl<LikedRecordMapper, Liked
     }
 
     private boolean unlike(LikeRecordFormDTO recordDTO) {
-        return remove(new QueryWrapper<LikedRecord>().lambda()
-                .eq(LikedRecord::getUserId, UserContext.getUser())
-                .eq(LikedRecord::getBizId, recordDTO.getBizId()));
+        // 1.获取用户id
+        Long userId = UserContext.getUser();
+        // 2.获取Key
+        String key = RedisConstants.LIKES_BIZ_KEY_PREFIX + recordDTO.getBizType() + recordDTO.getBizId();
+        // 3.执行SREM命令
+        Long result = redisTemplate.opsForSet().remove(key, userId.toString());
+        return result != null && result > 0;
     }
 
     private boolean like(LikeRecordFormDTO recordDTO) {
+        // 1.获取用户id
         Long userId = UserContext.getUser();
-        // 1.查询点赞记录
-        Integer count = lambdaQuery()
-                .eq(LikedRecord::getUserId, UserContext.getUser())
-                .eq(LikedRecord::getBizId, recordDTO.getBizId())
-                .count();
-        // 2.判断是否存在，如果已经存在，直接结束
-        if (count > 0) {
-            return false;
-        }
-        // 3.如果不存在，直接新增
-        LikedRecord r = new LikedRecord();
-        r.setUserId(userId);
-        r.setBizId(recordDTO.getBizId());
-        r.setBizType(recordDTO.getBizType());
-        save(r);
-
-        return true;
+        // 2.获取Key
+        String key = RedisConstants.LIKES_BIZ_KEY_PREFIX + recordDTO.getBizType() + recordDTO.getBizId();
+        // 3.执行SADD命令
+        Long result = redisTemplate.opsForSet().add(key, userId.toString());
+        return result != null && result > 0;
     }
 }
