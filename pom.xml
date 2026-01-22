@@ -40,7 +40,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <tjxt.version>1.0</tjxt.version>
-        <org.projectlombok.version>1.18.20</org.projectlombok.version>
+        <org.projectlombok.version>1.18.30</org.projectlombok.version>
         <spring-cloud.version>2021.0.3</spring-cloud.version>
         <spring-cloud-alibaba.version>2021.0.1.0</spring-cloud-alibaba.version>
         <mybatis-plus.version>3.4.3</mybatis-plus.version>
@@ -50,7 +50,7 @@
         <ali.sdk.core.version>4.6.0</ali.sdk.core.version>
         <ali.sdk.kms.version>2.10.1</ali.sdk.kms.version>
         <ali.sdk.oss.version>3.10.2</ali.sdk.oss.version>
-        <ali.sdk.pay.version>4.33.12.ALL</ali.sdk.pay.version>
+        <ali.sdk.pay.version>4.40.328.ALL</ali.sdk.pay.version>
         <tencent.cloud.version>3.1.515</tencent.cloud.version>
         <redisson.version>3.13.6</redisson.version>
         <elasticsearch.version>7.12.1</elasticsearch.version>
@@ -58,6 +58,7 @@
         <tencent.sdk.vod.version>2.1.5</tencent.sdk.vod.version>
         <xxl-job-version>2.3.1</xxl-job-version>
         <seata-version>1.5.1</seata-version>
+        <druid.version>1.2.23</druid.version>
     </properties>
     <!-- 对依赖包进行管理 -->
     <dependencyManagement>
@@ -82,6 +83,12 @@
                 <groupId>mysql</groupId>
                 <artifactId>mysql-connector-java</artifactId>
                 <version>${mysql.version}</version>
+            </dependency>
+            <!-- Druid 连接池 -->
+            <dependency>
+                <groupId>com.alibaba</groupId>
+                <artifactId>druid</artifactId>
+                <version>${druid.version}</version>
             </dependency>
 
             <!-- mybatis plus 管理 -->
