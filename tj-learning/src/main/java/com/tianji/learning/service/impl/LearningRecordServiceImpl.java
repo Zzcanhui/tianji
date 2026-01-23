@@ -4,6 +4,8 @@ import com.tianji.api.client.course.CourseClient;
 import com.tianji.api.dto.course.CourseFullInfoDTO;
 import com.tianji.api.dto.leanring.LearningLessonDTO;
 import com.tianji.api.dto.leanring.LearningRecordDTO;
+import com.tianji.common.autoconfigure.mq.RabbitMqHelper;
+import com.tianji.common.constants.MqConstants;
 import com.tianji.common.exceptions.BadRequestException;
 import com.tianji.common.exceptions.BizIllegalException;
 import com.tianji.common.utils.BeanUtils;
@@ -14,7 +16,6 @@ import com.tianji.learning.domain.po.LearningRecord;
 import com.tianji.learning.enums.LessonStatus;
 import com.tianji.learning.enums.SectionType;
 import com.tianji.learning.mapper.LearningRecordMapper;
-import com.tianji.learning.mq.LessonChangeListener;
 import com.tianji.learning.service.ILearningLessonService;
 import com.tianji.learning.service.ILearningRecordService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -23,7 +24,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import javax.validation.constraints.NotNull;
 import java.util.List;
 
 /**
@@ -43,6 +43,8 @@ public class LearningRecordServiceImpl extends ServiceImpl<LearningRecordMapper,
     private final CourseClient courseClient;
 
     private final LearningRecordDelayTaskHandler taskHandler;
+
+    private final RabbitMqHelper mqHelper;
 
 
     @Override
@@ -91,6 +93,8 @@ public class LearningRecordServiceImpl extends ServiceImpl<LearningRecordMapper,
         // 3.处理课表数据
         handleLearningLessonsChanges(recordDTO);
 
+        // 4.发送积分消息
+        mqHelper.send(MqConstants.Exchange.LEARNING_EXCHANGE, MqConstants.Key.LEARN_SECTION, userId);
     }
 
     private void handleLearningLessonsChanges(LearningRecordFormDTO recordDTO) {

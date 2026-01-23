@@ -14,7 +14,9 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * <p>
@@ -72,19 +74,23 @@ public class PointsRecordServiceImpl extends ServiceImpl<PointsRecordMapper, Poi
         QueryWrapper<PointsRecord> wrapper = new QueryWrapper<>();
         wrapper.lambda()
                 .eq(PointsRecord::getUserId, userId)
-                .between(PointsRecord::getCreateTime,begin,end);
-        // 4.查询
+                .between(PointsRecord::getCreateTime, begin, end);
+        // 4.查询（按类型分组统计积分）
         List<PointsRecord> list = getBaseMapper().queryUserPointsByDate(wrapper);
-        if (CollUtils.isEmpty(list)) {
-            return CollUtils.emptyList();
+        // 5.将查询结果转换为Map，key是类型，value是积分
+        Map<PointsRecordType, Integer> map = new HashMap<>();
+        if (CollUtils.isNotEmpty(list)) {
+            for (PointsRecord p : list) {
+                map.put(p.getType(), p.getPoints());
+            }
         }
-        // 5. 封装返回
-        List<PointsStatisticsVO> vos = new ArrayList<>(list.size());
-        for (PointsRecord p : list) {
+        // 6.遍历所有积分类型，封装返回
+        List<PointsStatisticsVO> vos = new ArrayList<>();
+        for (PointsRecordType type : PointsRecordType.values()) {
             PointsStatisticsVO vo = new PointsStatisticsVO();
-            vo.setType(p.getType().getDesc());
-            vo.setPoints(p.getPoints());
-            vo.setMaxPoints(p.getType().getMaxPoints());
+            vo.setType(type.getDesc());
+            vo.setPoints(map.getOrDefault(type, 0));
+            vo.setMaxPoints(type.getMaxPoints());
             vos.add(vo);
         }
         return vos;

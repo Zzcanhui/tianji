@@ -5,11 +5,13 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.tianji.api.client.remark.RemarkClient;
 import com.tianji.api.client.user.UserClient;
 import com.tianji.api.dto.user.UserDTO;
+import com.tianji.common.constants.MqConstants;
 import com.tianji.common.domain.dto.PageDTO;
 import com.tianji.common.exceptions.BadRequestException;
 import com.tianji.common.utils.BeanUtils;
 import com.tianji.common.utils.CollUtils;
 import com.tianji.common.utils.UserContext;
+import com.tianji.common.autoconfigure.mq.RabbitMqHelper;
 import com.tianji.learning.domain.dto.ReplyDTO;
 import com.tianji.learning.domain.po.InteractionQuestion;
 import com.tianji.learning.domain.po.InteractionReply;
@@ -43,6 +45,7 @@ public class InteractionReplyServiceImpl extends ServiceImpl<InteractionReplyMap
     private final InteractionQuestionMapper questionMapper;
     private final UserClient userClient;
     private final RemarkClient remarkClient;
+    private final RabbitMqHelper mqHelper;
 
     @Override
     @Transactional
@@ -60,8 +63,10 @@ public class InteractionReplyServiceImpl extends ServiceImpl<InteractionReplyMap
         if (answerId == null) {
             // 3.1.这是一个回答，需要更新问题表：累加回答次数，更新最新回答id
             questionMapper.updateAnswerInfo(replyDTO.getQuestionId(), reply.getId());
+            // 3.2.发送积分消息
+            mqHelper.send(MqConstants.Exchange.LEARNING_EXCHANGE, MqConstants.Key.WRITE_REPLY, userId);
         } else {
-            // 3.2.这是一个评论，需要累加回答下的评论次数
+            // 3.3.这是一个评论，需要累加回答下的评论次数
             lambdaUpdate()
                     .eq(InteractionReply::getId, answerId)
                     .setSql("reply_times = reply_times + 1")
