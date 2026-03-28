@@ -65,19 +65,17 @@ public class EncryptTest {
 
     @Test
     void testCodeUtil() {
-        CodeUtil codeUtil = new CodeUtil(new AESUtil("tjxt-test-key-in", "tjxt-test-ivinit"));
-
-        String code1 = codeUtil.generateCode(109);
+        String code1 = CodeUtil.generateCode(109, 1);
         System.out.println("code1 = " + code1);
-        String code2 = codeUtil.generateCode(110);
+        String code2 = CodeUtil.generateCode(110, 1);
         System.out.println("code2 = " + code2);
-        String code3 = codeUtil.generateCode(111);
+        String code3 = CodeUtil.generateCode(111, 1);
         System.out.println("code3 = " + code3);
 
-        System.out.println("num2 = " + codeUtil.parseCode(code2));
-        System.out.println("num3 = " + codeUtil.parseCode(code3));
-        System.out.println("num1 = " + codeUtil.parseCode(code1));
+        System.out.println("num2 = " + CodeUtil.parseCode(code2));
+        System.out.println("num3 = " + CodeUtil.parseCode(code3));
+        System.out.println("num1 = " + CodeUtil.parseCode(code1));
 
-        System.out.println("num = " + codeUtil.parseCode("SQBAUP2M"));
+        System.out.println("num = " + CodeUtil.parseCode("SQBAUP2M"));
     }
 }
