@@ -320,7 +320,7 @@ public class CategoryServiceImpl extends ServiceImpl<CategoryMapper, Category> i
 
     @Override
     public List<SimpleCategoryVO> all(Boolean admin) {
-        // 1.按分类表查询课程分类
+        // 1.按分类表直接查询课程分类
         LambdaQueryWrapper<Category> queryWrapper = Wrappers.lambdaQuery(Category.class)
                 .eq(!admin, Category::getStatus, CommonStatus.ENABLE.getValue())
                 .orderByAsc(Category::getPriority)
