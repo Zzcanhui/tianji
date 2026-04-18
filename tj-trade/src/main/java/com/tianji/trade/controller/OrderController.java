@@ -2,6 +2,8 @@ package com.tianji.trade.controller;
 
 
 import com.tianji.common.domain.dto.PageDTO;
+import com.tianji.common.exceptions.BadRequestException;
+import com.tianji.common.utils.CollUtils;
 import com.tianji.trade.domain.dto.PlaceOrderDTO;
 import com.tianji.trade.domain.query.OrderPageQuery;
 import com.tianji.trade.domain.vo.OrderConfirmVO;
@@ -54,7 +56,15 @@ public class OrderController {
 
     @ApiOperation("预下单接口，生成订单id，确认订单可用优惠券信息")
     @GetMapping("prePlaceOrder")
-    public OrderConfirmVO prePlaceOrder(@RequestParam("courseIds")List<Long> courseIds) {
+    public OrderConfirmVO prePlaceOrder(
+            @RequestParam(value = "courseIds", required = false) List<Long> courseIds,
+            @RequestParam(value = "courseId", required = false) Long courseId) {
+        if (CollUtils.isEmpty(courseIds) && courseId != null) {
+            courseIds = CollUtils.singletonList(courseId);
+        }
+        if (CollUtils.isEmpty(courseIds)) {
+            throw new BadRequestException("你还没有选好课程");
+        }
         return orderService.prePlaceOrder(courseIds);
     }
 

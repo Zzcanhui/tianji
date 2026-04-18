@@ -44,8 +44,10 @@ public class CookieBuilder {
             cookie.setDomain(domain);
         }else if (request != null) {
             String serverName = request.getServerName();
-            serverName = StringUtils.subAfter(serverName, ".", false);
-            cookie.setDomain("." + serverName);
+            if (shouldSetCookieDomain(serverName)) {
+                serverName = StringUtils.subAfter(serverName, ".", false);
+                cookie.setDomain("." + serverName);
+            }
         }
         cookie.setHttpOnly(httpOnly);
         cookie.setMaxAge(maxAge);
@@ -62,5 +64,12 @@ public class CookieBuilder {
      */
     public String decode(String cookieValue){
         return URLDecoder.decode(cookieValue, charset);
+    }
+
+    private boolean shouldSetCookieDomain(String serverName) {
+        if (StringUtils.isBlank(serverName) || "localhost".equalsIgnoreCase(serverName)) {
+            return false;
+        }
+        return !serverName.matches("\\d+\\.\\d+\\.\\d+\\.\\d+");
     }
 }
