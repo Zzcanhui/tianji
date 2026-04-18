@@ -36,6 +36,6 @@ public interface CourseMapper extends BaseMapper<Course> {
     List<IdAndNumDTO> countCourseNumOfTeacher(@Param("teacherIds")List<Long> teacherIds);
 
     @Select("select distinct first_cate_id as 'firstCateId',second_cate_id as 'secondCateId'," +
-            "third_cate_id as 'thirdCateId' from course where status=2")
+            "third_cate_id as 'thirdCateId' from course where status not in (0, 2)")
     List<Category3PO> queryCategoryIdWithCourse();
 }

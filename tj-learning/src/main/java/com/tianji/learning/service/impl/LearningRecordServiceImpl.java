@@ -24,6 +24,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -91,13 +92,13 @@ public class LearningRecordServiceImpl extends ServiceImpl<LearningRecordMapper,
             return;
         }
         // 3.处理课表数据
-        handleLearningLessonsChanges(recordDTO);
+        handleLearningLessonsChanges(recordDTO, finished);
 
         // 4.发送积分消息
         mqHelper.send(MqConstants.Exchange.LEARNING_EXCHANGE, MqConstants.Key.LEARN_SECTION, userId);
     }
 
-    private void handleLearningLessonsChanges(LearningRecordFormDTO recordDTO) {
+    private void handleLearningLessonsChanges(LearningRecordFormDTO recordDTO, boolean finished) {
         // 1.查询课表
         LearningLesson lesson = lessonService.getById(recordDTO.getLessonId());
         if (lesson == null) {
@@ -106,19 +107,22 @@ public class LearningRecordServiceImpl extends ServiceImpl<LearningRecordMapper,
         }
         // 2.判断是否有新的完成小节
         boolean allLearned = false;
-
-        // 3.如果有新完成的小节，则需要查询课程数据
-        CourseFullInfoDTO cInfo = courseClient.getCourseInfoById(lesson.getCourseId(), false, false);
-        if (cInfo == null) {
-            throw new BizIllegalException("课程不存在,无法更新数据!");
+        if (finished) {
+            // 3.如果有新完成的小节，则需要查询课程数据
+            CourseFullInfoDTO cInfo = courseClient.getCourseInfoById(lesson.getCourseId(), false, false);
+            if (cInfo == null) {
+                throw new BizIllegalException("课程不存在,无法更新数据!");
+            }
+            // 4.比较课程是否全部学完：已学习小节>=课程总小节
+            allLearned = lesson.getLearnedSections() + 1 >= cInfo.getSectionNum();
         }
-        // 4.比较课程是否全部学完：已学习小节>=课程总小节
-        allLearned = lesson.getLearnedSections() + 1 >= cInfo.getSectionNum();
 
         // 5.更新课表
         lessonService.lambdaUpdate()
                 .set(lesson.getLearnedSections() == 0, LearningLesson::getStatus, LessonStatus.LEARNING.getValue())
                 .set(allLearned, LearningLesson::getStatus, LessonStatus.FINISHED.getValue())
+                .set(!finished, LearningLesson::getLatestSectionId, recordDTO.getSectionId())
+                .set(!finished, LearningLesson::getLatestLearnTime, recordDTO.getCommitTime())
                 .setSql("learned_sections = learned_sections + 1")
                 .eq(LearningLesson::getId, lesson.getId())
                 .update();

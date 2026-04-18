@@ -320,27 +320,16 @@ public class CategoryServiceImpl extends ServiceImpl<CategoryMapper, Category> i
 
     @Override
     public List<SimpleCategoryVO> all(Boolean admin) {
-        // 1.查询有课程的课程分类id列表
-        List<Long> categoryIdList = admin ?
-                null :courseService.getCategoryIdListWithCourse();
-        // 1.1.判空
-        if(!admin && CollUtils.isEmpty(categoryIdList)){
-            return new ArrayList<>();
-        }
-
-        // 2.升序查询所有未禁用的课程分类
+        // 1.按分类表查询课程分类
         LambdaQueryWrapper<Category> queryWrapper = Wrappers.lambdaQuery(Category.class)
                 .eq(!admin, Category::getStatus, CommonStatus.ENABLE.getValue())
-                .in(CollectionUtil.isNotEmpty(categoryIdList), Category::getId, categoryIdList)
                 .orderByAsc(Category::getPriority)
                 .orderByDesc(Category::getId);
         List<Category> categories = this.baseMapper.selectList(queryWrapper);
 
-        // 3.将课程分类转换成树状结构
+        // 2.将课程分类转换成树状结构
         List<SimpleCategoryVO> simpleCategoryVOS = TreeDataUtils.parseToTree(categories,
                 SimpleCategoryVO.class, new CategoryDataWrapper());
-        // 4.过滤掉没有三级子课程分类的课程分类
-        filter(simpleCategoryVOS);
         return simpleCategoryVOS;
 
     }
